@@ -18,4 +18,8 @@ data class AnrScenario(
     val adbCommand: String?,
     val recoveryCommand: String = "adb shell am force-stop com.codemx.anrdemo",
     val enabledByDefault: Boolean = true,
+    val confirmationRequirement: ConfirmationRequirement = ConfirmationRequirement.CountdownConfirm,
+    val parameterSpecs: List<ScenarioParameterSpec> = emptyList(),
+    val confirmationPhrase: String? = null,
+    val documentationOnlyReason: String? = null,
 )

@@ -1,5 +1,6 @@
 package com.codemx.anrdemo.ui
 
+import android.os.SystemClock
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,18 +36,54 @@ import com.codemx.anrdemo.anr.catalog.AnrCatalog
 import com.codemx.anrdemo.anr.catalog.AnrCategory
 import com.codemx.anrdemo.anr.catalog.AnrRiskLevel
 import com.codemx.anrdemo.anr.catalog.AnrScenario
+import com.codemx.anrdemo.anr.catalog.ConfirmationRequirement
+import com.codemx.anrdemo.anr.catalog.ScenarioRequestBuilder
 import com.codemx.anrdemo.anr.diagnostics.DiagnosticCommands
+import com.codemx.anrdemo.anr.diagnostics.DiagnosticsRepository
 import com.codemx.anrdemo.anr.dispatch.AnrScenarioDispatcher
-import com.codemx.anrdemo.anr.dispatch.TriggerResult
+import com.codemx.anrdemo.anr.dispatch.AnrTriggerRequest
+import com.codemx.anrdemo.anr.safety.ConfirmationToken
+import com.codemx.anrdemo.anr.safety.SafetyPolicy
 import com.codemx.anrdemo.anr.triggers.MemoryPressureTriggers
+import com.codemx.anrdemo.ui.diagnostics.DiagnosticsPanel
+import com.codemx.anrdemo.ui.trigger.CountdownDialog
+import com.codemx.anrdemo.ui.trigger.CountdownEffect
+import com.codemx.anrdemo.ui.trigger.NormalConfirmDialog
+import com.codemx.anrdemo.ui.trigger.PhraseConfirmDialog
+import com.codemx.anrdemo.ui.trigger.ScenarioOptionsDialog
+import com.codemx.anrdemo.ui.trigger.TriggerFlowState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AnrDemoScreen(dispatcher: AnrScenarioDispatcher, modifier: Modifier = Modifier) {
+fun AnrDemoScreen(
+    dispatcher: AnrScenarioDispatcher,
+    diagnosticsRepository: DiagnosticsRepository,
+    modifier: Modifier = Modifier,
+) {
     var selectedCategory by remember { mutableStateOf<AnrCategory?>(null) }
-    var pendingScenario by remember { mutableStateOf<AnrScenario?>(null) }
     var commandScenario by remember { mutableStateOf<AnrScenario?>(null) }
-    var lastResult by remember { mutableStateOf<String?>(null) }
+    var flowState by remember { mutableStateOf<TriggerFlowState>(TriggerFlowState.Idle) }
+    var diagnostics by remember { mutableStateOf(diagnosticsRepository.snapshot()) }
+
+    fun refreshDiagnostics(refreshExit: Boolean = false) {
+        diagnostics = diagnosticsRepository.snapshot(refreshExitInfo = refreshExit)
+    }
+
+    fun dispatchAndRecord(scenario: AnrScenario, request: AnrTriggerRequest) {
+        val result = dispatcher.dispatch(request)
+        diagnosticsRepository.recordTriggerResult(result)
+        refreshDiagnostics()
+        flowState = TriggerFlowState.Finished(result)
+    }
+
+    CountdownEffect(
+        state = flowState,
+        onTick = { flowState = it },
+        onFinished = { counting ->
+            flowState = TriggerFlowState.Dispatching(counting.scenario, counting.request)
+            dispatchAndRecord(counting.scenario, counting.request)
+        }
+    )
 
     val scenarios = remember(selectedCategory) {
         AnrCatalog.scenarios.filter { selectedCategory == null || it.category == selectedCategory }
@@ -64,41 +101,76 @@ fun AnrDemoScreen(dispatcher: AnrScenarioDispatcher, modifier: Modifier = Modifi
                 Text("会故意卡死 App，仅在测试机运行。危险场景触发后可使用 force-stop 恢复。")
                 Spacer(Modifier.height(8.dp))
                 CategoryChips(selectedCategory) { selectedCategory = it }
-                lastResult?.let {
-                    Spacer(Modifier.height(8.dp))
-                    Text("最近触发结果：$it", style = MaterialTheme.typography.bodyMedium)
-                }
-                Text("内存压力保留：${MemoryPressureTriggers.retainedMb()} MB", style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.height(8.dp))
+                DiagnosticsPanel(
+                    snapshot = diagnostics,
+                    onRefresh = { refreshDiagnostics(refreshExit = true) },
+                    onClearMemory = {
+                        MemoryPressureTriggers.clearRetainedChunks()
+                        diagnosticsRepository.recordTriggerResult(com.codemx.anrdemo.anr.dispatch.TriggerResult.Started("已释放 memory-pressure 保留内存"))
+                        refreshDiagnostics()
+                    }
+                )
             }
             items(scenarios, key = { it.id }) { scenario ->
                 ScenarioCard(
                     scenario = scenario,
-                    onTrigger = { pendingScenario = scenario },
+                    onTrigger = { flowState = TriggerFlowState.SelectingOptions(scenario) },
                     onCommand = { commandScenario = scenario },
-                    onClearMemory = {
-                        MemoryPressureTriggers.clearRetainedChunks()
-                        lastResult = "已释放 memory-pressure 保留内存"
-                    }
                 )
             }
         }
     }
 
-    pendingScenario?.let { scenario ->
-        ConfirmAnrDialog(
-            scenario = scenario,
-            onDismiss = { pendingScenario = null },
-            onConfirm = {
-                pendingScenario = null
-                lastResult = resultText(dispatcher.dispatch(scenario.defaultRequest))
+    when (val state = flowState) {
+        TriggerFlowState.Idle -> Unit
+        is TriggerFlowState.SelectingOptions -> ScenarioOptionsDialog(
+            scenario = state.scenario,
+            onDismiss = { flowState = TriggerFlowState.Idle },
+            onContinue = { values ->
+                val request = ScenarioRequestBuilder.build(state.scenario, values)
+                when (SafetyPolicy.requirementFor(state.scenario, request)) {
+                    ConfirmationRequirement.DisabledDocumentation -> flowState = TriggerFlowState.Confirming(state.scenario, request)
+                    ConfirmationRequirement.TypePhraseConfirm -> flowState = TriggerFlowState.AwaitingPhrase(state.scenario, request, SafetyPolicy.phraseFor(state.scenario, request) ?: state.scenario.id.uppercase())
+                    ConfirmationRequirement.LongPressConfirm,
+                    ConfirmationRequirement.NormalConfirm,
+                    ConfirmationRequirement.CountdownConfirm -> flowState = TriggerFlowState.Confirming(state.scenario, request)
+                }
             }
         )
+        is TriggerFlowState.Confirming -> NormalConfirmDialog(
+            scenario = state.scenario,
+            onDismiss = { flowState = TriggerFlowState.Idle },
+            onConfirm = {
+                val request = withTokenIfNeeded(state.scenario, state.request)
+                flowState = TriggerFlowState.CountingDown(state.scenario, request, 3)
+            }
+        )
+        is TriggerFlowState.AwaitingPhrase -> PhraseConfirmDialog(
+            scenario = state.scenario,
+            phrase = state.phrase,
+            onDismiss = { flowState = TriggerFlowState.Idle },
+            onConfirm = {
+                val request = state.request.copy(
+                    confirmationToken = ConfirmationToken(state.scenario.id, SystemClock.elapsedRealtime(), SafetyPolicy.requirementFor(state.scenario, state.request))
+                )
+                flowState = TriggerFlowState.CountingDown(state.scenario, request, 3)
+            }
+        )
+        is TriggerFlowState.CountingDown -> CountdownDialog(state.secondsLeft) { flowState = TriggerFlowState.Idle }
+        is TriggerFlowState.Dispatching -> Unit
+        is TriggerFlowState.Finished -> flowState = TriggerFlowState.Idle
     }
 
     commandScenario?.let { scenario ->
         AdbCommandDialog(scenario = scenario, onDismiss = { commandScenario = null })
     }
 }
+
+private fun withTokenIfNeeded(scenario: AnrScenario, request: AnrTriggerRequest): AnrTriggerRequest =
+    if (SafetyPolicy.requiresToken(scenario, request)) {
+        request.copy(confirmationToken = ConfirmationToken(scenario.id, SystemClock.elapsedRealtime(), SafetyPolicy.requirementFor(scenario, request)))
+    } else request
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -117,12 +189,7 @@ private fun CategoryChips(selected: AnrCategory?, onSelected: (AnrCategory?) -> 
 }
 
 @Composable
-private fun ScenarioCard(
-    scenario: AnrScenario,
-    onTrigger: () -> Unit,
-    onCommand: () -> Unit,
-    onClearMemory: () -> Unit,
-) {
+private fun ScenarioCard(scenario: AnrScenario, onTrigger: () -> Unit, onCommand: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -133,34 +200,15 @@ private fun ScenarioCard(
             Text(scenario.timeoutDescription, style = MaterialTheme.typography.bodyMedium)
             Text(scenario.explanation, style = MaterialTheme.typography.bodySmall)
             Text("预期：${scenario.expectedReason}", style = MaterialTheme.typography.bodySmall)
+            scenario.confirmationPhrase?.let { Text("强确认短语：$it", style = MaterialTheme.typography.bodySmall) }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onTrigger, enabled = scenario.enabledByDefault || scenario.riskLevel != AnrRiskLevel.Dangerous) {
-                    Text(if (scenario.enabledByDefault) "触发" else "高级禁用")
+                Button(onClick = onTrigger, enabled = scenario.documentationOnlyReason == null) {
+                    Text(if (scenario.documentationOnlyReason == null) "触发" else "仅说明")
                 }
                 OutlinedButton(onClick = onCommand) { Text("命令") }
-                if (scenario.id == "memory-pressure") {
-                    OutlinedButton(onClick = onClearMemory) { Text("释放内存") }
-                }
             }
         }
     }
-}
-
-@Composable
-private fun ConfirmAnrDialog(scenario: AnrScenario, onDismiss: () -> Unit, onConfirm: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("确认触发 ${scenario.title}？") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("该操作会故意阻塞或卡死 App。仅在测试设备运行。")
-                Text("超时：${scenario.timeoutDescription}")
-                Text("恢复：${scenario.recoveryCommand}")
-            }
-        },
-        confirmButton = { Button(onClick = onConfirm) { Text("触发") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
-    )
 }
 
 @Composable
@@ -178,16 +226,7 @@ private fun AdbCommandDialog(scenario: AnrScenario, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         title = { Text("adb / 诊断命令") },
         text = { Text(command) },
-        confirmButton = {
-            Button(onClick = { clipboard.setText(AnnotatedString(command)); onDismiss() }) { Text("复制") }
-        },
+        confirmButton = { Button(onClick = { clipboard.setText(AnnotatedString(command)); onDismiss() }) { Text("复制") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("关闭") } }
     )
-}
-
-private fun resultText(result: TriggerResult): String = when (result) {
-    is TriggerResult.Started -> result.message
-    is TriggerResult.Completed -> "同步触发完成，耗时 ${result.elapsedMs}ms"
-    is TriggerResult.Rejected -> "已拒绝：${result.reason}"
-    TriggerResult.NotRunnableFromUi -> "该场景不支持 UI 触发"
 }

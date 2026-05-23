@@ -9,6 +9,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.codemx.anrdemo.anr.diagnostics.AnrLogTags
+import com.codemx.anrdemo.anr.diagnostics.DiagnosticsRepository
 import com.codemx.anrdemo.anr.dispatch.AnrScenarioDispatcher
 import com.codemx.anrdemo.anr.dispatch.DeepLinkParser
 import com.codemx.anrdemo.ui.AnrDemoScreen
@@ -16,15 +17,17 @@ import com.codemx.anrdemo.ui.theme.ANRDemoTheme
 
 class MainActivity : ComponentActivity() {
     private lateinit var dispatcher: AnrScenarioDispatcher
+    private lateinit var diagnosticsRepository: DiagnosticsRepository
     private val mainHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         dispatcher = AnrScenarioDispatcher(this)
+        diagnosticsRepository = DiagnosticsRepository(this)
         enableEdgeToEdge()
         setContent {
             ANRDemoTheme {
-                AnrDemoScreen(dispatcher = dispatcher)
+                AnrDemoScreen(dispatcher = dispatcher, diagnosticsRepository = diagnosticsRepository)
             }
         }
         handleDeepLink(intent)

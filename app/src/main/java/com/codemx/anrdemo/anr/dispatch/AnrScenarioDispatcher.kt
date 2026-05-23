@@ -12,6 +12,7 @@ import com.codemx.anrdemo.anr.catalog.AnrCatalog
 import com.codemx.anrdemo.anr.catalog.AnrDefaults
 import com.codemx.anrdemo.anr.catalog.AnrTriggerKind
 import com.codemx.anrdemo.anr.diagnostics.AnrLogTags
+import com.codemx.anrdemo.anr.diagnostics.ProviderDiagnosticResult
 import com.codemx.anrdemo.anr.safety.SafetyGate
 import com.codemx.anrdemo.anr.triggers.BlockingService
 import com.codemx.anrdemo.anr.triggers.DeadlockTriggers
@@ -46,14 +47,14 @@ class AnrScenarioDispatcher(
     }
 
     private fun sendBroadcast(request: AnrTriggerRequest, scenarioId: String): TriggerResult {
-        val foreground = request.foreground ?: (scenarioId == "broadcast-foreground")
+        val foreground = request.foreground ?: (scenarioId == "broadcast-foreground" || scenarioId == "broadcast-async-no-finish")
         val blockMs = request.blockMs ?: if (foreground) AnrDefaults.BROADCAST_FOREGROUND_BLOCK_MS else AnrDefaults.BROADCAST_BACKGROUND_BLOCK_MS
-        context.sendBroadcast(DemoBroadcastReceiver.createIntent(context, blockMs, foreground, request.mode))
+        context.sendBroadcast(DemoBroadcastReceiver.createIntent(context, blockMs, foreground, request.mode?.takeIf { it != "sync" }))
         return TriggerResult.Started("已发送 Broadcast，blockMs=$blockMs foreground=$foreground")
     }
 
     private fun startBlockingService(request: AnrTriggerRequest, scenarioId: String): TriggerResult {
-        val blockMs = request.blockMs ?: if (scenarioId == "service-background") AnrDefaults.SERVICE_BACKGROUND_BLOCK_MS else AnrDefaults.SERVICE_FOREGROUND_BLOCK_MS
+        val blockMs = request.blockMs ?: if (scenarioId == "service-background" || request.mode == "background") AnrDefaults.SERVICE_BACKGROUND_BLOCK_MS else AnrDefaults.SERVICE_FOREGROUND_BLOCK_MS
         context.startService(BlockingService.createIntent(context, blockMs, request.mode))
         return TriggerResult.Started("已启动 BlockingService，blockMs=$blockMs")
     }
@@ -90,7 +91,15 @@ class AnrScenarioDispatcher(
         context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
             while (cursor.moveToNext()) Unit
         }
-        return TriggerResult.Completed(android.os.SystemClock.elapsedRealtime() - started)
+        val elapsed = android.os.SystemClock.elapsedRealtime() - started
+        return TriggerResult.ProviderCompleted(
+            ProviderDiagnosticResult(
+                uri = uri.toString(),
+                elapsedMs = elapsed,
+                requestedBlockMs = blockMs,
+                likelyAnrThresholdExceeded = elapsed >= 5_000L,
+            )
+        )
     }
 
     private fun startShortForegroundService(request: AnrTriggerRequest): TriggerResult {

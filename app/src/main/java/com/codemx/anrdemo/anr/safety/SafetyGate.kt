@@ -1,7 +1,8 @@
 package com.codemx.anrdemo.anr.safety
 
-import com.codemx.anrdemo.anr.catalog.AnrRiskLevel
+import android.os.SystemClock
 import com.codemx.anrdemo.anr.catalog.AnrScenario
+import com.codemx.anrdemo.anr.catalog.ConfirmationRequirement
 import com.codemx.anrdemo.anr.dispatch.AnrTriggerRequest
 import com.codemx.anrdemo.anr.dispatch.TriggerResult
 
@@ -17,8 +18,18 @@ class SafetyGate {
                 return TriggerResult.Rejected("该场景只适用于 Android API $maxApi 或更低版本")
             }
         }
-        if (scenario.riskLevel == AnrRiskLevel.Dangerous && scenario.enabledByDefault && !request.allowDangerousOom) {
-            // Dangerous scenarios can still be run from explicit cards; this guard mainly protects dangerous OOM.
+        if (SafetyPolicy.requirementFor(scenario, request) == ConfirmationRequirement.DisabledDocumentation) {
+            return TriggerResult.Rejected(scenario.documentationOnlyReason ?: "该场景仅用于说明")
+        }
+        if (SafetyPolicy.requiresToken(scenario, request)) {
+            val token = request.confirmationToken
+            if (token == null || token.scenarioId != scenario.id) {
+                return TriggerResult.Rejected("高危场景需要通过 UI 强确认后才能触发")
+            }
+            val ageMs = SystemClock.elapsedRealtime() - token.issuedAtElapsedMs
+            if (ageMs > 30_000L) {
+                return TriggerResult.Rejected("确认已过期，请重新确认")
+            }
         }
         return null
     }

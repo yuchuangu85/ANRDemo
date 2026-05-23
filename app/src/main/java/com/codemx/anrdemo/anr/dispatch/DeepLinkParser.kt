@@ -15,14 +15,27 @@ object DeepLinkParser {
         val scenarioId = uri.path.orEmpty().trim('/').substringBefore('/').takeIf { it.isNotBlank() } ?: return null
         val params = parseQuery(uri.rawQuery.orEmpty())
         return AnrTriggerRequest(
-            scenarioId = scenarioId,
+            scenarioId = canonicalScenarioId(scenarioId),
             blockMs = params["blockMs"]?.toLongOrNull(),
-            mode = params["mode"],
+            mode = params["mode"] ?: defaultModeFor(scenarioId),
             maxMb = params["maxMb"]?.toIntOrNull(),
             chunkMb = params["chunkMb"]?.toIntOrNull(),
             foreground = params["foreground"]?.toBooleanStrictOrNull(),
-            allowDangerousOom = params["allowDangerousOom"]?.toBooleanStrictOrNull() ?: false,
+            allowDangerousOom = params["allowDangerousOom"]?.toBooleanStrictOrNull() ?: (scenarioId == "memory-dangerous-oom"),
         )
+    }
+
+    private fun defaultModeFor(id: String): String? = when (id) {
+        "deadlock-classic" -> "classic"
+        "job-service-stop" -> "onStopJob"
+        else -> null
+    }
+
+    private fun canonicalScenarioId(id: String): String = when (id) {
+        "deadlock-classic" -> "deadlock"
+        "memory-dangerous-oom" -> "memory-pressure"
+        "job-service-stop" -> "job-service"
+        else -> id
     }
 
     private fun parseQuery(rawQuery: String): Map<String, String> {
