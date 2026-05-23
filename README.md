@@ -68,7 +68,7 @@ With an explicit device and output directory:
 scripts/capture-android-logs.sh -s <device-serial> -o logs/anr-case-001 --tail-seconds 5
 ```
 
-Outputs include `System_MT_logcat_MM_DD_HH_MM_SS.txt`, `System_MT_logcat_event_MM_DD_HH_MM_SS.txt`, `bugreport.zip`, and `metadata.txt`.
+Outputs include `System_MT_logcat_MM_DD_HH_MM_SS.txt`, `System_MT_logcat_event_MM_DD_HH_MM_SS.txt`, the system-generated bugreport file, and `metadata.txt`.
 
 ## Smoke test
 

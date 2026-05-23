@@ -17,7 +17,7 @@ Options:
 Outputs:
   System_MT_logcat_MM_DD_HH_MM_SS.txt         main/system/crash/radio/kernel buffers
   System_MT_logcat_event_MM_DD_HH_MM_SS.txt   events buffer
-  bugreport.zip                               adb bugreport archive
+  bugreport-* or *.zip                       adb bugreport archive using system-generated name
   metadata.txt                                device and timing metadata
 USAGE
 }
@@ -82,7 +82,7 @@ LOGCAT_STAMP="$(date +%m_%d_%H_%M_%S)"
 LOGCAT_FILE="$OUT_DIR/System_MT_logcat_${LOGCAT_STAMP}.txt"
 EVENT_STAMP="$(date +%m_%d_%H_%M_%S)"
 EVENT_FILE="$OUT_DIR/System_MT_logcat_event_${EVENT_STAMP}.txt"
-BUGREPORT_FILE="$OUT_DIR/bugreport.zip"
+BUGREPORT_TARGET="$OUT_DIR"
 METADATA_FILE="$OUT_DIR/metadata.txt"
 
 LOGCAT_PID=""
@@ -137,8 +137,8 @@ EVENT_PID=$!
 
 sleep 1
 
-echo "Starting bugreport -> $BUGREPORT_FILE"
-"${ADB[@]}" bugreport "$BUGREPORT_FILE" > "$OUT_DIR/bugreport.stdout.txt" 2> "$OUT_DIR/bugreport.stderr.txt" &
+echo "Starting bugreport -> $BUGREPORT_TARGET (system-generated filename)"
+"${ADB[@]}" bugreport "$BUGREPORT_TARGET" > "$OUT_DIR/bugreport.stdout.txt" 2> "$OUT_DIR/bugreport.stderr.txt" &
 BUGREPORT_PID=$!
 
 BUGREPORT_STATUS=0
@@ -163,7 +163,8 @@ EVENT_PID=""
 echo "capture_end=$(date -Is)" >> "$METADATA_FILE"
 
 echo "Done. Files:"
-printf '  %s\n' "$LOGCAT_FILE" "$EVENT_FILE" "$BUGREPORT_FILE" "$METADATA_FILE"
+printf '  %s\n' "$LOGCAT_FILE" "$EVENT_FILE" "$METADATA_FILE"
+find "$OUT_DIR" -maxdepth 1 -type f \( -name 'bugreport*' -o -name '*.zip' \) -print | sed 's/^/  /'
 
 if [[ "$BUGREPORT_STATUS" -ne 0 ]]; then
   echo "Warning: bugreport exited with status $BUGREPORT_STATUS. Check bugreport stdout/stderr files." >&2
