@@ -36,6 +36,7 @@ object ScenarioRequestBuilder {
             foreground = merged["foreground"]?.toBooleanStrictOrNull(),
             allowDangerousOom = merged["allowDangerousOom"]?.toBooleanStrictOrNull() ?: false,
             confirmationToken = confirmationToken,
+            adbConfirmed = merged["adbConfirmed"]?.toBooleanStrictOrNull() ?: false,
         )
     }
 

@@ -1,6 +1,7 @@
 package com.codemx.anrdemo.anr.triggers
 
 import android.app.Service
+import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.os.IBinder
@@ -18,7 +19,11 @@ class BlockingService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val blockMs = intent?.getLongExtra(EXTRA_BLOCK_MS, AnrDefaults.SERVICE_FOREGROUND_BLOCK_MS)
             ?: AnrDefaults.SERVICE_FOREGROUND_BLOCK_MS
-        Log.d(AnrLogTags.TRIGGER, "BlockingService onStartCommand blockMs=$blockMs thread=${Thread.currentThread().name}")
+        val mode = intent?.getStringExtra(EXTRA_MODE).orEmpty()
+        val processInfo = ActivityManager.RunningAppProcessInfo()
+        ActivityManager.getMyMemoryState(processInfo)
+        val importance = processInfo.importance
+        Log.d(AnrLogTags.TRIGGER, "BlockingService onStartCommand mode=$mode blockMs=$blockMs importance=$importance thread=${Thread.currentThread().name}")
         SystemClock.sleep(blockMs)
         stopSelf(startId)
         return START_NOT_STICKY

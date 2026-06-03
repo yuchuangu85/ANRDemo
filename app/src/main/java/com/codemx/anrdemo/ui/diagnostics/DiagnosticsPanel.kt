@@ -30,7 +30,8 @@ fun DiagnosticsPanel(
             Text("内存：retained=${snapshot.memory.retainedMemoryMb}MB, heap=${snapshot.memory.heapUsedMb}/${snapshot.memory.heapMaxMb}MB")
             snapshot.latestExitInfo?.let { Text("ExitInfo：$it") }
             snapshot.lastProviderResult?.let {
-                Text("Provider：${it.elapsedMs}ms / requested=${it.requestedBlockMs}ms / thresholdExceeded=${it.likelyAnrThresholdExceeded}")
+                Text("Provider：${it.elapsedMs}ms / requested=${it.requestedBlockMs}ms / slowQuery=${it.likelyAnrThresholdExceeded} / systemAnrEvidence=${it.systemAnrEvidence}")
+                Text(it.note, style = MaterialTheme.typography.bodySmall)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = onRefresh) { Text("刷新 ExitInfo") }

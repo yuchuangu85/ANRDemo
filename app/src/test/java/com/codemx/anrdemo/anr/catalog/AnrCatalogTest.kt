@@ -47,4 +47,21 @@ class AnrCatalogTest {
             assertTrue("${scenario.id} recovery", scenario.recoveryCommand.contains("force-stop"))
         }
     }
+
+    @Test
+    fun adbCommandsUseConfirmedDeepLinksInsteadOfExportedBroadcasts() {
+        AnrCatalog.scenarios.mapNotNull { it.adbCommand }.forEach { command ->
+            assertFalse(command, command.contains("am broadcast"))
+            assertTrue(command, command.contains("adbConfirmed=true"))
+        }
+    }
+
+    @Test
+    fun jobServiceStopKeepsDistinctScenarioIdentityAndMode() {
+        val scenario = AnrCatalog.requireScenario("job-service-stop")
+        assertEquals("job-service-stop", scenario.defaultRequest.scenarioId)
+        assertEquals("onStopJob", scenario.defaultRequest.mode)
+        assertTrue(scenario.adbCommand.orEmpty().contains("job-service-stop"))
+        assertTrue(scenario.adbCommand.orEmpty().contains("mode=onStopJob"))
+    }
 }

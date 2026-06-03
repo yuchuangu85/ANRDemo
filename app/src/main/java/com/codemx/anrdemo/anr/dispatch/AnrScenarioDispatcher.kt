@@ -6,6 +6,8 @@ import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.PersistableBundle
 import android.util.Log
 import com.codemx.anrdemo.anr.catalog.AnrCatalog
@@ -69,19 +71,27 @@ class AnrScenarioDispatcher(
 
     private fun scheduleJob(request: AnrTriggerRequest): TriggerResult {
         val scheduler = context.getSystemService(JobScheduler::class.java)
+        val mode = request.mode ?: DemoJobService.MODE_START
         val extras = PersistableBundle().apply {
             putLong(DemoJobService.EXTRA_BLOCK_MS, request.blockMs ?: AnrDefaults.JOB_BLOCK_MS)
-            putString(DemoJobService.EXTRA_MODE, request.mode ?: DemoJobService.MODE_START)
+            putString(DemoJobService.EXTRA_MODE, mode)
         }
+        val jobId = if (mode == DemoJobService.MODE_STOP) DemoJobService.JOB_STOP_ID else DemoJobService.JOB_START_ID
         val job = JobInfo.Builder(
-            DemoJobService.JOB_ID,
+            jobId,
             ComponentName(context, DemoJobService::class.java),
         )
             .setOverrideDeadline(0L)
             .setExtras(extras)
             .build()
         scheduler.schedule(job)
-        return TriggerResult.Started("已调度 DemoJobService")
+        if (mode == DemoJobService.MODE_STOP) {
+            Handler(Looper.getMainLooper()).postDelayed({
+                Log.d(AnrLogTags.TRIGGER, "Cancelling DemoJobService jobId=$jobId to force onStopJob")
+                scheduler.cancel(jobId)
+            }, DemoJobService.STOP_TRIGGER_DELAY_MS)
+        }
+        return TriggerResult.Started("已调度 DemoJobService，mode=$mode jobId=$jobId")
     }
 
     private fun queryProvider(request: AnrTriggerRequest): TriggerResult {
@@ -98,6 +108,8 @@ class AnrScenarioDispatcher(
                 elapsedMs = elapsed,
                 requestedBlockMs = blockMs,
                 likelyAnrThresholdExceeded = elapsed >= 5_000L,
+                systemAnrEvidence = false,
+                note = "本结果只证明调用方主线程等待 slow provider query；是否为系统 ContentProvider ANR 必须以 ActivityManager/exit-info/bugreport 为准。",
             )
         )
     }

@@ -162,7 +162,7 @@
   - `.anr.triggers.DemoJobService`，权限 `android.permission.BIND_JOB_SERVICE`
   - `.anr.triggers.BlockingContentProvider`，独立进程 `:provider`
   - `.anr.triggers.ShortForegroundService`，Android 14+ 高级场景
-  - Activity deep link intent-filter：`anrdemo://scenario/{id}`，用于 adb 直接触发 Deadlock / Memory pressure 等 UI-only 场景
+  - Activity deep link intent-filter：`anrdemo://scenario/{id}?adbConfirmed=true`，用于 adb 直接触发 Deadlock / Memory pressure 等 UI-only 场景
 
 ## 6. `adb` 验证命令规划
 
@@ -172,23 +172,21 @@
 # 观察 ANR / ActivityManager / system_server 日志
 adb logcat -v time ActivityManager:E AndroidRuntime:E ANRDemo:D *:S
 
-# 触发 foreground priority broadcast，预期 10-20s 阈值
-adb shell am broadcast \
-  -a com.codemx.anrdemo.ACTION_BLOCKING_BROADCAST \
-  -n com.codemx.anrdemo/.anr.triggers.DemoBroadcastReceiver \
-  --ez foreground true \
-  --ei blockMs 12000
+# 触发 foreground priority broadcast，预期 10-20s 阈值；receiver 为内部组件，通过确认 deep link 触发
+adb shell am start -a android.intent.action.VIEW \
+  -d 'anrdemo://scenario/broadcast-foreground?foreground=true&blockMs=12000&adbConfirmed=true' \
+  com.codemx.anrdemo
 
 # 触发死锁 / 锁竞争场景（由 Activity 接收 deep link 后执行）
 adb shell am start \
   -a android.intent.action.VIEW \
-  -d 'anrdemo://scenario/deadlock?mode=contention&blockMs=8000' \
+  -d 'anrdemo://scenario/deadlock?mode=contention&blockMs=8000&adbConfirmed=true' \
   com.codemx.anrdemo
 
 # 触发内存压力 + GC thrash 场景（默认有限额，避免直接 OOM crash）
 adb shell am start \
   -a android.intent.action.VIEW \
-  -d 'anrdemo://scenario/memory-pressure?maxMb=128&chunkMb=8&blockMs=8000' \
+  -d 'anrdemo://scenario/memory-pressure?maxMb=128&chunkMb=8&blockMs=8000&adbConfirmed=true' \
   com.codemx.anrdemo
 
 # 恢复卡死/死锁后的 App

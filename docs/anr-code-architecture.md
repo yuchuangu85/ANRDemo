@@ -403,7 +403,7 @@ Manifest 为 `MainActivity` 增加 deep link：
 <intent-filter>
     <action android:name="android.intent.action.VIEW" />
     <category android:name="android.intent.category.DEFAULT" />
-    <category android:name="android.intent.category.BROWSABLE" />
+    <!-- BROWSABLE intentionally omitted; adb deep links require adbConfirmed=true. -->
     <data android:scheme="anrdemo" android:host="scenario" />
 </intent-filter>
 ```
@@ -411,7 +411,7 @@ Manifest 为 `MainActivity` 增加 deep link：
 Deep link 格式：
 
 ```text
-anrdemo://scenario/{scenarioId}?key=value
+anrdemo://scenario/{scenarioId}?key=value&adbConfirmed=true
 ```
 
 示例：
@@ -419,7 +419,7 @@ anrdemo://scenario/{scenarioId}?key=value
 ```bash
 adb shell am start \
   -a android.intent.action.VIEW \
-  -d 'anrdemo://scenario/deadlock?mode=contention&blockMs=8000' \
+  -d 'anrdemo://scenario/deadlock?mode=contention&blockMs=8000&adbConfirmed=true' \
   com.codemx.anrdemo
 ```
 
@@ -436,7 +436,7 @@ adb shell am start \
 
     <receiver
         android:name=".anr.triggers.DemoBroadcastReceiver"
-        android:exported="true" />
+        android:exported="false" />
 
     <service
         android:name=".anr.triggers.BlockingService"

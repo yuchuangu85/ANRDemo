@@ -11,6 +11,7 @@ data class AnrTriggerRequest(
     val foreground: Boolean? = null,
     val allowDangerousOom: Boolean = false,
     val confirmationToken: ConfirmationToken? = null,
+    val adbConfirmed: Boolean = false,
 ) {
     fun withScenario(id: String): AnrTriggerRequest = copy(scenarioId = id)
 }

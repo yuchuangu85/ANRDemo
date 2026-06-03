@@ -120,11 +120,11 @@ object AnrCatalog {
             expectedReason = "Broadcast of Intent ... goAsync pending result not finished",
             explanation = "BroadcastReceiver 调用 goAsync() 后故意不 finish()，演示异步 receiver 超时。",
             defaultRequest = AnrTriggerRequest("broadcast-async-no-finish", foreground = true, mode = "goAsyncNoFinish", blockMs = AnrDefaults.BROADCAST_FOREGROUND_BLOCK_MS),
-            adbCommand = "adb shell am broadcast --receiver-foreground -a ${AnrDefaults.BLOCKING_BROADCAST_ACTION} -n ${AnrDefaults.PACKAGE_NAME}/.anr.triggers.DemoBroadcastReceiver --ez foreground true --es mode goAsyncNoFinish --el blockMs ${AnrDefaults.BROADCAST_FOREGROUND_BLOCK_MS}",
+            adbCommand = deepLink("broadcast-async-no-finish", "foreground=true&mode=goAsyncNoFinish&blockMs=${AnrDefaults.BROADCAST_FOREGROUND_BLOCK_MS}"),
             parameterSpecs = broadcastParams(true, AnrDefaults.BROADCAST_FOREGROUND_BLOCK_MS, "goAsyncNoFinish"),
         ),
         serviceScenario("service-foreground", "Executing service foreground timeout", AnrRiskLevel.Medium, "foreground", AnrDefaults.SERVICE_FOREGROUND_BLOCK_MS, ConfirmationRequirement.CountdownConfirm),
-        serviceScenario("service-background", "Executing service background timeout", AnrRiskLevel.Dangerous, "background", AnrDefaults.SERVICE_BACKGROUND_BLOCK_MS, ConfirmationRequirement.TypePhraseConfirm, "SERVICE200"),
+        serviceScenario("service-background", "Executing service long timeout / background-sensitive", AnrRiskLevel.Dangerous, "background", AnrDefaults.SERVICE_BACKGROUND_BLOCK_MS, ConfirmationRequirement.TypePhraseConfirm, "SERVICE200"),
         AnrScenario(
             id = "fgs-start-timeout",
             title = "startForegroundService 未及时 startForeground",
@@ -147,14 +147,14 @@ object AnrCatalog {
         jobScenario("job-service-stop", "JobScheduler onStopJob timeout", "onStopJob"),
         AnrScenario(
             id = "content-provider",
-            title = "ContentProvider not responding",
+            title = "Slow ContentProvider query / caller Binder wait",
             category = AnrCategory.ComponentLifecycle,
             riskLevel = AnrRiskLevel.Medium,
             triggerKind = AnrTriggerKind.ContentProvider,
             timeoutDescription = "官方未统一公开固定阈值；Demo 独立进程 provider 查询阻塞 8 秒。",
             recommendedBlockMs = AnrDefaults.PROVIDER_BLOCK_MS,
-            expectedReason = "Content provider not responding or slow provider query",
-            explanation = "远程 provider 查询、冷启动和 Binder 线程/主线程阻塞都可能计入。不同设备不一定弹系统 ANR。",
+            expectedReason = "Slow provider query; system ContentProvider ANR only if ActivityManager/exit-info reports it",
+            explanation = "远程 provider 查询会让调用方主线程等待 Binder 返回；Demo 记录慢查询耗时，但不再把本地 5 秒阈值当作系统 provider ANR 证据。",
             defaultRequest = AnrTriggerRequest("content-provider", blockMs = AnrDefaults.PROVIDER_BLOCK_MS),
             adbCommand = deepLink("content-provider", "blockMs=${AnrDefaults.PROVIDER_BLOCK_MS}"),
             parameterSpecs = listOf(duration("Provider query 阻塞", AnrDefaults.PROVIDER_BLOCK_MS, 1_000, 30_000)),
@@ -205,7 +205,7 @@ object AnrCatalog {
             expectedReason = "Broadcast of Intent ...",
             explanation = if (foreground) "发送带 foreground priority flag 的显式广播，在 onReceive() 内阻塞。" else "不设置 foreground flag 的显式广播，耗时较长。",
             defaultRequest = AnrTriggerRequest(id, foreground = foreground, blockMs = blockMs, mode = "sync"),
-            adbCommand = if (foreground) "adb shell am broadcast --receiver-foreground -a ${AnrDefaults.BLOCKING_BROADCAST_ACTION} -n ${AnrDefaults.PACKAGE_NAME}/.anr.triggers.DemoBroadcastReceiver --ez foreground true --el blockMs $blockMs" else "adb shell am broadcast -a ${AnrDefaults.BLOCKING_BROADCAST_ACTION} -n ${AnrDefaults.PACKAGE_NAME}/.anr.triggers.DemoBroadcastReceiver --ez foreground false --el blockMs $blockMs",
+            adbCommand = deepLink(id, "foreground=$foreground&blockMs=$blockMs"),
             confirmationRequirement = confirmation,
             parameterSpecs = broadcastParams(foreground, blockMs),
         )
@@ -217,10 +217,10 @@ object AnrCatalog {
             category = if (mode == "background") AnrCategory.LongRunningAdvanced else AnrCategory.ComponentLifecycle,
             riskLevel = risk,
             triggerKind = AnrTriggerKind.Service,
-            timeoutDescription = if (mode == "background") "后台 service 执行默认 200 秒；Demo 阻塞 210 秒。" else "前台 service 执行默认 20 秒；Demo 阻塞 25 秒。",
+            timeoutDescription = if (mode == "background") "后台 service 执行经典阈值约 200 秒；现代 Android 后台启动受限，Demo 长阻塞 210 秒并记录进程 importance，最终分类以系统日志为准。" else "前台 service 执行默认 20 秒；Demo 阻塞 25 秒。",
             recommendedBlockMs = blockMs,
             expectedReason = "executing service",
-            explanation = "Service lifecycle 回调运行在主线程，onStartCommand() 阻塞会触发 executing service ANR。",
+            explanation = if (mode == "background") "Service lifecycle 回调运行在主线程；该场景用于长耗时/后台敏感对照，不再宣称所有设备必定产生后台 service 分类。" else "Service lifecycle 回调运行在主线程，onStartCommand() 阻塞会触发 executing service ANR。",
             defaultRequest = AnrTriggerRequest(id, mode = mode, blockMs = blockMs),
             adbCommand = deepLink(id, "mode=$mode&blockMs=$blockMs"),
             confirmationRequirement = confirmation,
@@ -245,7 +245,8 @@ object AnrCatalog {
         )
 
     private fun deepLink(id: String, query: String? = null): String {
-        val suffix = if (query.isNullOrBlank()) id else "$id?$query"
+        val confirmedQuery = listOfNotNull(query?.takeIf { it.isNotBlank() }, "adbConfirmed=true").joinToString("&")
+        val suffix = "$id?$confirmedQuery"
         return "adb shell am start -a android.intent.action.VIEW -d 'anrdemo://scenario/$suffix' ${AnrDefaults.PACKAGE_NAME}"
     }
 }

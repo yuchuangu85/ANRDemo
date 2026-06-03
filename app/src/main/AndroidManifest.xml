@@ -25,14 +25,13 @@
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="anrdemo" android:host="scenario" />
             </intent-filter>
         </activity>
 
         <receiver
             android:name=".anr.triggers.DemoBroadcastReceiver"
-            android:exported="true" />
+            android:exported="false" />
 
         <service
             android:name=".anr.triggers.BlockingService"

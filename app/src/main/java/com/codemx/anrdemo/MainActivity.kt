@@ -42,6 +42,10 @@ class MainActivity : ComponentActivity() {
     private fun handleDeepLink(intent: Intent?) {
         val request = DeepLinkParser.parse(intent?.data) ?: return
         Log.d(AnrLogTags.TRIGGER, "Deep link request=$request")
+        if (!request.adbConfirmed) {
+            Log.w(AnrLogTags.SAFETY, "Ignoring unconfirmed deep link scenario=${request.scenarioId}; add adbConfirmed=true for adb-driven runs")
+            return
+        }
         mainHandler.postDelayed({ dispatcher.dispatch(request) }, 500L)
     }
 }

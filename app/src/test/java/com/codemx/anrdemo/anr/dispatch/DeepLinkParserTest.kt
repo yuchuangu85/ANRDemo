@@ -27,8 +27,32 @@ class DeepLinkParserTest {
 
     @Test
     fun parsesBooleanForeground() {
-        val request = DeepLinkParser.parse("anrdemo://scenario/broadcast-foreground?foreground=true")!!
+        val request = DeepLinkParser.parse("anrdemo://scenario/broadcast-foreground?foreground=true&adbConfirmed=true")!!
         assertTrue(request.foreground == true)
+        assertTrue(request.adbConfirmed)
+    }
+
+    @Test
+    fun deepLinksRequireExplicitAdbConfirmationFlag() {
+        val unconfirmed = DeepLinkParser.parse("anrdemo://scenario/input-dispatch?blockMs=8000")!!
+        val confirmed = DeepLinkParser.parse("anrdemo://scenario/input-dispatch?blockMs=8000&adbConfirmed=true")!!
+
+        assertFalse(unconfirmed.adbConfirmed)
+        assertTrue(confirmed.adbConfirmed)
+    }
+
+    @Test
+    fun specializedScenarioIdsArePreservedForCorpusProvenance() {
+        val classic = DeepLinkParser.parse("anrdemo://scenario/deadlock-classic?adbConfirmed=true")!!
+        val dangerousOom = DeepLinkParser.parse("anrdemo://scenario/memory-dangerous-oom?adbConfirmed=true")!!
+        val jobStop = DeepLinkParser.parse("anrdemo://scenario/job-service-stop?adbConfirmed=true")!!
+
+        assertEquals("deadlock-classic", classic.scenarioId)
+        assertEquals("classic", classic.mode)
+        assertEquals("memory-dangerous-oom", dangerousOom.scenarioId)
+        assertTrue(dangerousOom.allowDangerousOom)
+        assertEquals("job-service-stop", jobStop.scenarioId)
+        assertEquals("onStopJob", jobStop.mode)
     }
 
     @Test

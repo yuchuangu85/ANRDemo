@@ -12,6 +12,18 @@ object ExitInfoReader {
         val info = am.getHistoricalProcessExitReasons(context.packageName, 0, 5)
             .firstOrNull { it.reason == ApplicationExitInfo.REASON_ANR }
             ?: return "暂无最近 ANR exit info"
-        return "最近 ANR: pid=${info.pid}, importance=${info.importance}, time=${info.timestamp}, desc=${info.description.orEmpty()}"
+        return buildString {
+            append("最近 ANR: pid=${info.pid}, importance=${info.importance}, time=${info.timestamp}, desc=${info.description.orEmpty()}")
+            append("\ntraceExcerpt:\n")
+            append(traceExcerpt(info))
+        }
+    }
+
+    private fun traceExcerpt(info: ApplicationExitInfo, maxLines: Int = 80): String {
+        return runCatching {
+            info.traceInputStream?.bufferedReader()?.use { reader ->
+                reader.lineSequence().take(maxLines).joinToString("\n")
+            }
+        }.getOrNull()?.takeIf { it.isNotBlank() } ?: "trace unavailable"
     }
 }

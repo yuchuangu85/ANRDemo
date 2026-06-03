@@ -357,14 +357,13 @@ adb shell am force-stop "$PKG"
 adb shell am start -n "$PKG/.MainActivity"
 sleep 2
 
-adb shell am start -a android.intent.action.VIEW -d 'anrdemo://scenario/input-dispatch?blockMs=8000' "$PKG" || true
+adb shell am start -a android.intent.action.VIEW -d 'anrdemo://scenario/input-dispatch?blockMs=8000&adbConfirmed=true' "$PKG" || true
 sleep 10
 adb shell am force-stop "$PKG"
 
-adb shell am broadcast --receiver-foreground \
-  -a com.codemx.anrdemo.ACTION_BLOCKING_BROADCAST \
-  -n "$PKG/.anr.triggers.DemoBroadcastReceiver" \
-  --ez foreground true --el blockMs 12000 || true
+adb shell am start -a android.intent.action.VIEW \
+  -d 'anrdemo://scenario/broadcast-foreground?foreground=true&blockMs=12000&adbConfirmed=true' \
+  "$PKG" || true
 sleep 15
 adb shell am force-stop "$PKG"
 ```

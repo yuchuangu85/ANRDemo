@@ -17,6 +17,7 @@ Options:
 Outputs:
   System_MT_logcat_MM_DD_HH_MM_SS.txt         main/system/crash/radio/kernel buffers
   System_MT_logcat_event_MM_DD_HH_MM_SS.txt   events buffer
+  exit-info.txt                               dumpsys activity exit-info for ANRDemo
   bugreport-* or *.zip                       adb bugreport archive using system-generated name
   metadata.txt                                device and timing metadata
 USAGE
@@ -84,6 +85,8 @@ EVENT_STAMP="$(date +%m_%d_%H_%M_%S)"
 EVENT_FILE="$OUT_DIR/System_MT_logcat_event_${EVENT_STAMP}.txt"
 BUGREPORT_TARGET="$OUT_DIR"
 METADATA_FILE="$OUT_DIR/metadata.txt"
+EXIT_INFO_FILE="$OUT_DIR/exit-info.txt"
+PKG="com.codemx.anrdemo"
 
 LOGCAT_PID=""
 EVENT_PID=""
@@ -148,6 +151,9 @@ BUGREPORT_PID=""
 echo "bugreport_exit=$BUGREPORT_STATUS" >> "$METADATA_FILE"
 echo "bugreport_end=$(date -Is)" >> "$METADATA_FILE"
 
+echo "Capturing exit-info -> $EXIT_INFO_FILE"
+"${ADB[@]}" shell dumpsys activity exit-info "$PKG" > "$EXIT_INFO_FILE" 2>&1 || true
+
 if [[ "$TAIL_SECONDS" -gt 0 ]]; then
   echo "Keeping logcat running for ${TAIL_SECONDS}s after bugreport..."
   sleep "$TAIL_SECONDS"
@@ -163,7 +169,7 @@ EVENT_PID=""
 echo "capture_end=$(date -Is)" >> "$METADATA_FILE"
 
 echo "Done. Files:"
-printf '  %s\n' "$LOGCAT_FILE" "$EVENT_FILE" "$METADATA_FILE"
+printf '  %s\n' "$LOGCAT_FILE" "$EVENT_FILE" "$EXIT_INFO_FILE" "$METADATA_FILE"
 find "$OUT_DIR" -maxdepth 1 -type f \( -name 'bugreport*' -o -name '*.zip' \) -print | sed 's/^/  /'
 
 if [[ "$BUGREPORT_STATUS" -ne 0 ]]; then
