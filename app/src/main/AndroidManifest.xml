@@ -54,6 +54,11 @@
             android:process=":provider" />
 
         <service
+            android:name=".anr.triggers.BinderPeerService"
+            android:exported="false"
+            android:process=":binderPeer" />
+
+        <service
             android:name=".anr.triggers.ShortForegroundService"
             android:exported="false"
             android:foregroundServiceType="shortService" />

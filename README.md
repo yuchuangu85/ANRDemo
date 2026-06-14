@@ -50,6 +50,10 @@ adb shell am start -a android.intent.action.VIEW \
 adb shell am start -a android.intent.action.VIEW \
   -d 'anrdemo://scenario/broadcast-foreground?foreground=true&blockMs=12000&adbConfirmed=true' \
   com.codemx.anrdemo
+
+adb shell am start -a android.intent.action.VIEW \
+  -d 'anrdemo://scenario/binder-peer-stall?blockMs=8000&adbConfirmed=true' \
+  com.codemx.anrdemo
 ```
 
 `adbConfirmed=true` is intentionally required for adb-driven deep links. The app no longer exposes browser deep links, and the blocking broadcast receiver is internal-only, to avoid accidental third-party ANR triggers.

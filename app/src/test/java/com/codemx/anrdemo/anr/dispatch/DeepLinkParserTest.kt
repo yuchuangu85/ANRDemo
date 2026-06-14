@@ -33,6 +33,14 @@ class DeepLinkParserTest {
     }
 
     @Test
+    fun parsesBinderPeerStallDeepLink() {
+        val request = DeepLinkParser.parse("anrdemo://scenario/binder-peer-stall?blockMs=9000&adbConfirmed=true")!!
+        assertEquals("binder-peer-stall", request.scenarioId)
+        assertEquals(9000L, request.blockMs)
+        assertTrue(request.adbConfirmed)
+    }
+
+    @Test
     fun deepLinksRequireExplicitAdbConfirmationFlag() {
         val unconfirmed = DeepLinkParser.parse("anrdemo://scenario/input-dispatch?blockMs=8000")!!
         val confirmed = DeepLinkParser.parse("anrdemo://scenario/input-dispatch?blockMs=8000&adbConfirmed=true")!!

@@ -11,6 +11,7 @@ object AnrDefaults {
     const val SERVICE_BACKGROUND_BLOCK_MS = 210_000L
     const val JOB_BLOCK_MS = 10_000L
     const val PROVIDER_BLOCK_MS = 8_000L
+    const val BINDER_PEER_BLOCK_MS = 8_000L
     const val SHORT_SERVICE_BLOCK_MS = 190_000L
     const val DEFAULT_MEMORY_MAX_MB = 128
     const val DEFAULT_MEMORY_CHUNK_MB = 8

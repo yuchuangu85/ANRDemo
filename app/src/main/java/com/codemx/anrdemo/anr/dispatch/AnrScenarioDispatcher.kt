@@ -17,6 +17,7 @@ import com.codemx.anrdemo.anr.diagnostics.AnrLogTags
 import com.codemx.anrdemo.anr.diagnostics.ProviderDiagnosticResult
 import com.codemx.anrdemo.anr.safety.SafetyGate
 import com.codemx.anrdemo.anr.triggers.BlockingService
+import com.codemx.anrdemo.anr.triggers.BinderPeerTriggers
 import com.codemx.anrdemo.anr.triggers.DeadlockTriggers
 import com.codemx.anrdemo.anr.triggers.DemoBroadcastReceiver
 import com.codemx.anrdemo.anr.triggers.DemoJobService
@@ -43,6 +44,7 @@ class AnrScenarioDispatcher(
             AnrTriggerKind.ForegroundServiceStart -> startForegroundTimeoutService(request)
             AnrTriggerKind.JobService -> scheduleJob(request)
             AnrTriggerKind.ContentProvider -> queryProvider(request)
+            AnrTriggerKind.BinderPeer -> BinderPeerTriggers.trigger(context, request.blockMs ?: AnrDefaults.BINDER_PEER_BLOCK_MS)
             AnrTriggerKind.ShortForegroundService -> startShortForegroundService(request)
             AnrTriggerKind.AdbOnly -> TriggerResult.NotRunnableFromUi
         }

@@ -4,6 +4,7 @@ import android.app.ActivityManager
 import android.app.ApplicationExitInfo
 import android.content.Context
 import android.os.Build
+import androidx.annotation.RequiresApi
 
 object ExitInfoReader {
     fun latestAnrSummary(context: Context): String {
@@ -19,6 +20,7 @@ object ExitInfoReader {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
     private fun traceExcerpt(info: ApplicationExitInfo, maxLines: Int = 80): String {
         return runCatching {
             info.traceInputStream?.bufferedReader()?.use { reader ->

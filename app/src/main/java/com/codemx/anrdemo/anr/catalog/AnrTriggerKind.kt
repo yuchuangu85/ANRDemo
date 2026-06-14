@@ -9,6 +9,7 @@ enum class AnrTriggerKind {
     ForegroundServiceStart,
     JobService,
     ContentProvider,
+    BinderPeer,
     ShortForegroundService,
     AdbOnly
 }

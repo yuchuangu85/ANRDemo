@@ -51,6 +51,8 @@ app/src/main/java/com/codemx/anrdemo/
 │       ├── ForegroundStartTimeoutService.kt
 │       ├── DemoJobService.kt
 │       ├── BlockingContentProvider.kt
+│       ├── BinderPeerService.kt
+│       ├── BinderPeerTriggers.kt
 │       ├── ShortForegroundService.kt
 │       └── NotificationHelper.kt
 ├── ui/
@@ -128,6 +130,7 @@ enum class AnrTriggerKind {
     ForegroundServiceStart,
     JobService,
     ContentProvider,
+    BinderPeer,
     ShortForegroundService,
     AdbOnly,
 }
@@ -176,6 +179,7 @@ class AnrScenarioDispatcher(
             AnrTriggerKind.ForegroundServiceStart -> ServiceLauncher.startForegroundTimeoutService(context, request)
             AnrTriggerKind.JobService -> JobLauncher.schedule(context, request)
             AnrTriggerKind.ContentProvider -> ProviderCaller.queryBlockingProvider(context, request)
+            AnrTriggerKind.BinderPeer -> BinderPeerTriggers.trigger(context, request.blockMs ?: 8_000)
             AnrTriggerKind.ShortForegroundService -> ServiceLauncher.startShortService(context, request)
             AnrTriggerKind.AdbOnly -> TriggerResult.NotRunnableFromUi
         }
@@ -198,6 +202,7 @@ class AnrScenarioDispatcher(
 | FGS 未及时 `startForeground()` | `fgs-start-timeout` | `ForegroundServiceStart` | `ForegroundStartTimeoutService.kt` | `mode=skipStartForeground` |
 | JobScheduler 回调超时 | `job-service` | `JobService` | `DemoJobService.kt` | `blockMs=10000` |
 | ContentProvider not responding | `content-provider` | `ContentProvider` | `BlockingContentProvider.kt` | `blockMs=8000` |
+| Binder 对端卡顿 / 同步 IPC 等待 | `binder-peer-stall` | `BinderPeer` | `BinderPeerService.kt` / `BinderPeerTriggers.kt` | `blockMs=8000` |
 | FGS `shortService` | `short-service` | `ShortForegroundService` | `ShortForegroundService.kt` | `blockMs=190000` |
 
 ## 5. 触发器设计
@@ -458,6 +463,11 @@ adb shell am start \
         android:exported="false" />
 
     <service
+        android:name=".anr.triggers.BinderPeerService"
+        android:process=":binderPeer"
+        android:exported="false" />
+
+    <service
         android:name=".anr.triggers.ShortForegroundService"
         android:foregroundServiceType="shortService"
         android:exported="false" />
@@ -562,6 +572,7 @@ App 内展示：
 | FGS start timeout | 出现 did not call `startForeground()` 相关异常/ANR |
 | JobService | Android 14+ 出现 JobScheduler ANR；低版本记录差异 |
 | ContentProvider | 记录 provider query 阻塞耗时；视设备观察 ANR |
+| Binder peer stall | 主线程栈可见 `BinderProxy.transact` / 远端 `BinderPeerService` 睡眠日志；通常按 input timeout 观察 |
 
 ## 12. 实施顺序建议
 

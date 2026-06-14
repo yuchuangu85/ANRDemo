@@ -64,4 +64,14 @@ class AnrCatalogTest {
         assertTrue(scenario.adbCommand.orEmpty().contains("job-service-stop"))
         assertTrue(scenario.adbCommand.orEmpty().contains("mode=onStopJob"))
     }
+
+    @Test
+    fun binderPeerScenarioDocumentsRemoteSynchronousWait() {
+        val scenario = AnrCatalog.requireScenario("binder-peer-stall")
+        assertEquals(AnrTriggerKind.BinderPeer, scenario.triggerKind)
+        assertEquals(AnrDefaults.BINDER_PEER_BLOCK_MS, scenario.defaultRequest.blockMs)
+        assertTrue(scenario.explanation.contains("独立进程"))
+        assertTrue(scenario.expectedReason.contains("BinderProxy.transactNative"))
+        assertTrue(scenario.adbCommand.orEmpty().contains("binder-peer-stall"))
+    }
 }

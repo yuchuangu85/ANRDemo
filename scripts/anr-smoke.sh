@@ -131,6 +131,7 @@ echo "ANRDemo smoke evidence output: $OUT_DIR"
 run_deeplink "input-dispatch" "anrdemo://scenario/input-dispatch?blockMs=8000" 8 10 "Input dispatching timed out|ANR in $PKG|am_anr"
 run_deeplink "deadlock-contention" "anrdemo://scenario/deadlock?mode=contention&blockMs=8000" 8 10 "Input dispatching timed out|ANRDemo-lock-holder|ANR in $PKG|am_anr"
 run_deeplink "memory-pressure-bounded" "anrdemo://scenario/memory-pressure?maxMb=64&chunkMb=4&blockMs=8000" 8 10 "Input dispatching timed out|Starting GC thrash|ANR in $PKG|am_anr"
+run_deeplink "binder-peer-stall" "anrdemo://scenario/binder-peer-stall?blockMs=8000" 8 10 "Input dispatching timed out|BinderProxy\\.transact|BinderPeerService remote onTransact|ANR in $PKG|am_anr"
 run_deeplink "broadcast-foreground" "anrdemo://scenario/broadcast-foreground?foreground=true&blockMs=12000" 0 15 "Broadcast of Intent|Broadcast receiver|ANR in $PKG|am_anr"
 
 cat "$SUMMARY"
