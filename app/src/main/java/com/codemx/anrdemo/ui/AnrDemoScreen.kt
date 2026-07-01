@@ -19,7 +19,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -89,14 +88,13 @@ fun AnrDemoScreen(
         AnrCatalog.scenarios.filter { selectedCategory == null || it.category == selectedCategory }
     }
 
-    Scaffold(modifier = modifier.fillMaxSize()) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            item {
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item {
                 Text("ANR Demo", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                 Text("会故意卡死 App，仅在测试机运行。危险场景触发后可使用 force-stop 恢复。")
                 Spacer(Modifier.height(8.dp))
@@ -112,13 +110,12 @@ fun AnrDemoScreen(
                     }
                 )
             }
-            items(scenarios, key = { it.id }) { scenario ->
-                ScenarioCard(
-                    scenario = scenario,
-                    onTrigger = { flowState = TriggerFlowState.SelectingOptions(scenario) },
-                    onCommand = { commandScenario = scenario },
-                )
-            }
+        items(scenarios, key = { it.id }) { scenario ->
+            ScenarioCard(
+                scenario = scenario,
+                onTrigger = { flowState = TriggerFlowState.SelectingOptions(scenario) },
+                onCommand = { commandScenario = scenario },
+            )
         }
     }
 

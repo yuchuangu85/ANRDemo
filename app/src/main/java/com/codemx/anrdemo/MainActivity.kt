@@ -12,22 +12,29 @@ import com.codemx.anrdemo.anr.diagnostics.AnrLogTags
 import com.codemx.anrdemo.anr.diagnostics.DiagnosticsRepository
 import com.codemx.anrdemo.anr.dispatch.AnrScenarioDispatcher
 import com.codemx.anrdemo.anr.dispatch.DeepLinkParser
-import com.codemx.anrdemo.ui.AnrDemoScreen
+import com.codemx.anrdemo.perf.load.PerfLoadController
+import com.codemx.anrdemo.ui.AppRoot
 import com.codemx.anrdemo.ui.theme.ANRDemoTheme
 
 class MainActivity : ComponentActivity() {
     private lateinit var dispatcher: AnrScenarioDispatcher
     private lateinit var diagnosticsRepository: DiagnosticsRepository
+    private lateinit var perfLoadController: PerfLoadController
     private val mainHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         dispatcher = AnrScenarioDispatcher(this)
         diagnosticsRepository = DiagnosticsRepository(this)
+        perfLoadController = PerfLoadController()
         enableEdgeToEdge()
         setContent {
             ANRDemoTheme {
-                AnrDemoScreen(dispatcher = dispatcher, diagnosticsRepository = diagnosticsRepository)
+                AppRoot(
+                    dispatcher = dispatcher,
+                    diagnosticsRepository = diagnosticsRepository,
+                    perfLoadController = perfLoadController,
+                )
             }
         }
         handleDeepLink(intent)
